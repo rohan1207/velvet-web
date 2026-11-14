@@ -1,7 +1,6 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
+/admin/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -16,13 +15,18 @@
 # next.js
 /.next/
 /out/
+/admin/.next/
+/admin/out/
 
 # production
 /build
+/admin/build
 
 # misc
 .DS_Store
 *.pem
+Thumbs.db
+*.lnk
 
 # debug
 npm-debug.log*
@@ -30,30 +34,23 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files (secrets — never commit)
 .env*
 !.env.example
 !admin/.env.example
 
-# local product image dumps
-/public/products/
-/public/final_products_combined/
-
-# keep huge binaries out of git (upload videos/PDFs to R2/CDN instead)
-*.mp4
-*.webm
-*.mov
-/*.pdf
-_git_trace.log
-**/_git_trace.log
-*.lnk
-/_size_report.txt
-docs/*.xlsx
-supabase/.temp/
-
 # vercel
 .vercel
+admin/.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+admin/next-env.d.ts
+
+# local dumps / temp
+/public/products/
+/public/final_products_combined/
+supabase/.temp/
+_git_trace.log
+_size_report.txt

@@ -1,4 +1,1 @@
-# Videos stay local / on CDN — too large for git push on this network
-*.mp4
-*.webm
-*.mov
+# intentionally empty — site assets in public/ are tracked
