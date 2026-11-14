@@ -12,9 +12,9 @@ All mail is sent via **Resend** as:
 
 ## Templates
 
-Shared layout: `lib/email/templates.js` (copied to `admin/lib/email/templates.js`).
+Shared layout: `lib/email/templates.js` (synced to `admin/lib/email/templates.js`).
 
-Professional single card, mobile-width (~560px), sections for customer / items / totals (subtotal, shipping, discount + coupon, total) / payment / delivery / tracking as relevant.
+Minimal professional look: white card, black/grey type, system sans-serif. Responsive — full width on phones, 600px card on desktop. Sections for customer / items / totals / payment / delivery / tracking as relevant.
 
 ---
 

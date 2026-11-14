@@ -32,13 +32,17 @@ export async function POST(request) {
         email,
         kind,
         target_slug: slug,
-        product_name: name,
+        product_name: name || slug,
       },
       { onConflict: 'email,kind,target_slug' },
     );
     if (error) throw error;
 
-    return NextResponse.json({ ok: true });
+    // Temporary waitlist — cleared automatically after restock email is sent
+    return NextResponse.json({
+      ok: true,
+      message: 'We’ll email you when this is back in stock.',
+    });
   } catch (err) {
     console.error('[stock-notify]', err);
     return NextResponse.json(
