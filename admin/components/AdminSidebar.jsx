@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { pendingOrderCount } from '@/lib/repository';
+import { useCallback, useEffect, useState } from 'react';
 
 const links = [
   { href: '/', label: 'Dashboard', icon: 'grid' },
@@ -137,14 +136,27 @@ export default function AdminSidebar({ open, onClose, collapsed, onToggleCollaps
   const router = useRouter();
   const [pending, setPending] = useState(0);
 
-  useEffect(() => {
-    function refresh() {
-      setPending(pendingOrderCount());
+  const refreshBadge = useCallback(async () => {
+    try {
+      const res = await fetch('/api/orders/badge', { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setPending(Number(data.count) || 0);
+    } catch {
+      /* keep last known count */
     }
-    refresh();
-    window.addEventListener('vs-admin-store', refresh);
-    return () => window.removeEventListener('vs-admin-store', refresh);
-  }, [pathname]);
+  }, []);
+
+  useEffect(() => {
+    refreshBadge();
+    const onFocus = () => refreshBadge();
+    window.addEventListener('focus', onFocus);
+    // Poll so new live orders show up without a full reload
+    const timer = window.setInterval(refreshBadge, 60_000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.clearInterval(timer);
+    };
+  }, [pathname, refreshBadge]);
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });

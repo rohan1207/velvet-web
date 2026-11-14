@@ -382,14 +382,22 @@ export async function bulkUpdateSets({ ids, action }) {
         .from('product_sets')
         .select('id, name, slug')
         .in('id', uniqueIds);
-      const setName = sets?.[0]?.name || 'Set';
+      // Notify anyone who clicked Notify me on the set page
+      for (const set of sets || []) {
+        await flushStockNotify({
+          kind: 'set',
+          slug: set.slug,
+          name: set.name || 'Set',
+        });
+      }
+      // Also notify waitlists on member product/variant slugs that just came back
       for (const row of before || []) {
         const wasOut = !!row.out_of_stock || Number(row.stock) <= 0;
         if (!wasOut) continue;
         await flushStockNotify({
           kind: 'product',
           slug: row.slug,
-          name: setName,
+          name: sets?.[0]?.name || row.slug,
         });
       }
     } catch (notifyErr) {

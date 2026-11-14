@@ -503,6 +503,7 @@ export async function upsertFamily(payload) {
   // Back-in-stock emails for variants that just became available
   try {
     const { flushStockNotify } = await import('@/lib/stock-notify');
+    const familySlug = String(saved?.slug || '').trim().toLowerCase();
     for (const v of saved?.variants || []) {
       const nowOut = !!v.outOfStock || Number(v.stock) <= 0;
       const prev = prevStockBySlug.get(v.slug);
@@ -510,7 +511,9 @@ export async function upsertFamily(payload) {
       if (wasOut && !nowOut) {
         await flushStockNotify({
           kind: 'product',
-          slug: v.slug,
+          // Prefer family slug for /shop/[slug] buy link; also match waitlist on variant slug
+          slug: familySlug || v.slug,
+          alsoSlugs: [v.slug, familySlug].filter(Boolean),
           name: saved.name,
         });
       }
@@ -603,16 +606,19 @@ export async function bulkUpdateFamilies({ ids, action }) {
       const { flushStockNotify } = await import('@/lib/stock-notify');
       const { data: families } = await db
         .from('product_families')
-        .select('id, name')
+        .select('id, name, slug')
         .in('id', uniqueIds);
-      const nameById = new Map((families || []).map((f) => [f.id, f.name]));
+      const familyById = new Map((families || []).map((f) => [f.id, f]));
       for (const row of rows) {
         const wasOut = !!row.out_of_stock || Number(row.stock) <= 0;
         if (!wasOut) continue;
+        const family = familyById.get(row.family_id);
+        const familySlug = String(family?.slug || '').trim().toLowerCase();
         await flushStockNotify({
           kind: 'product',
-          slug: row.slug,
-          name: nameById.get(row.family_id) || row.slug,
+          slug: familySlug || row.slug,
+          alsoSlugs: [row.slug, familySlug].filter(Boolean),
+          name: family?.name || row.slug,
         });
       }
     } catch (notifyErr) {
