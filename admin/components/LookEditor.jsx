@@ -1,14 +1,68 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { listProducts } from '@/lib/repository';
 import { money } from '@/lib/format';
 import ImageUploadField from '@/components/ImageUploadField';
 
 function ProductPicker({ onPick, onClose }) {
   const [q, setQ] = useState('');
-  const rows = useMemo(() => listProducts({ q, status: 'active' }).slice(0, 40), [q]);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/catalog/products', { credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        const families = Array.isArray(data.products) ? data.products : [];
+        const flat = [];
+        for (const family of families) {
+          const variants = Array.isArray(family.variants) ? family.variants : [];
+          if (!variants.length) {
+            flat.push({
+              slug: family.slug,
+              name: family.name,
+              image: family.heroUrl || family.image || '',
+              price: family.price || 0,
+            });
+            continue;
+          }
+          for (const v of variants) {
+            flat.push({
+              slug: v.slug || family.slug,
+              name: family.name + (v.colorLabel ? ` · ${v.colorLabel}` : ''),
+              image: v.heroUrl || family.heroUrl || '',
+              price: v.price || family.price || 0,
+            });
+          }
+        }
+        setRows(flat);
+      } catch {
+        if (!cancelled) setRows([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows.slice(0, 50);
+    return rows
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(needle) ||
+          p.slug.toLowerCase().includes(needle),
+      )
+      .slice(0, 50);
+  }, [rows, q]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#2d2b2b]/45 p-4">
@@ -17,6 +71,9 @@ function ProductPicker({ onPick, onClose }) {
           <div>
             <p className="font-label text-[10px] text-[#d4af64]">Attach product</p>
             <h3 className="font-display mt-1 text-2xl">Choose a piece</h3>
+            <p className="mt-1 text-xs text-[#7a736c]">
+              Prefer products that belong to the matching set.
+            </p>
           </div>
           <button type="button" className="text-sm text-[#7a736c]" onClick={onClose}>
             Cancel
@@ -32,28 +89,34 @@ function ProductPicker({ onPick, onClose }) {
           />
         </div>
         <ul className="flex-1 overflow-y-auto p-2">
-          {rows.map((p) => (
-            <li key={p.slug}>
-              <button
-                type="button"
-                onClick={() => onPick(p)}
-                className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-[#faf7f2]"
-              >
-                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#ebe3da]">
-                  {p.image ? (
-                    <Image src={p.image} alt="" fill className="object-cover" sizes="48px" unoptimized />
-                  ) : null}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{p.name}</span>
-                  <span className="block text-xs text-[#7a736c]">
-                    <span className="font-num">{p.slug} · {money(p.price)}</span>
+          {loading && (
+            <li className="px-4 py-8 text-center text-sm text-[#7a736c]">Loading catalogue…</li>
+          )}
+          {!loading &&
+            filtered.map((p) => (
+              <li key={p.slug}>
+                <button
+                  type="button"
+                  onClick={() => onPick(p)}
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-[#faf7f2]"
+                >
+                  <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#ebe3da]">
+                    {p.image ? (
+                      <Image src={p.image} alt="" fill className="object-cover" sizes="48px" unoptimized />
+                    ) : null}
                   </span>
-                </span>
-              </button>
-            </li>
-          ))}
-          {rows.length === 0 && (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{p.name}</span>
+                    <span className="block text-xs text-[#7a736c]">
+                      <span className="font-num">
+                        {p.slug} · {money(p.price)}
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          {!loading && filtered.length === 0 && (
             <li className="px-4 py-8 text-center text-sm text-[#7a736c]">No products match.</li>
           )}
         </ul>
@@ -62,18 +125,58 @@ function ProductPicker({ onPick, onClose }) {
   );
 }
 
-export default function LookEditor({ look, onSave }) {
+export default function LookEditor({ look, onChange, slotLabel = 'Look' }) {
   const [form, setForm] = useState(() => ({
     ...look,
     hotspots: look.hotspots ? [...look.hotspots] : [],
   }));
   const [marking, setMarking] = useState(false);
-  const [pickerFor, setPickerFor] = useState(null); // { x, y } or hotspot id string
-  const [saved, setSaved] = useState(false);
+  const [pickerFor, setPickerFor] = useState(null);
+  const [catalog, setCatalog] = useState([]);
   const imgWrapRef = useRef(null);
 
+  useEffect(() => {
+    setForm({
+      ...look,
+      hotspots: look.hotspots ? [...look.hotspots] : [],
+    });
+  }, [look]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/catalog/products', { credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        const families = Array.isArray(data.products) ? data.products : [];
+        const flat = [];
+        for (const family of families) {
+          for (const v of family.variants || [{ slug: family.slug, heroUrl: family.heroUrl, price: family.price }]) {
+            flat.push({
+              slug: v.slug || family.slug,
+              name: family.name,
+              image: v.heroUrl || family.heroUrl || '',
+              price: v.price || 0,
+            });
+          }
+        }
+        setCatalog(flat);
+      } catch {
+        if (!cancelled) setCatalog([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function update(patch) {
-    setForm((prev) => ({ ...prev, ...patch }));
+    setForm((prev) => {
+      const next = { ...prev, ...patch };
+      onChange?.(next);
+      return next;
+    });
   }
 
   function onImageClick(e) {
@@ -84,7 +187,12 @@ export default function LookEditor({ look, onSave }) {
     if (!img) return;
 
     const rect = img.getBoundingClientRect();
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) {
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
       return;
     }
     const x = Number((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
@@ -105,7 +213,7 @@ export default function LookEditor({ look, onSave }) {
     } else {
       update({
         hotspots: form.hotspots.map((h) =>
-          h.id === pickerFor.id ? { ...h, productSlug: product.slug } : h
+          h.id === pickerFor.id ? { ...h, productSlug: product.slug } : h,
         ),
       });
     }
@@ -119,18 +227,19 @@ export default function LookEditor({ look, onSave }) {
 
   const productsBySlug = useMemo(() => {
     const map = new Map();
-    for (const p of listProducts()) map.set(p.slug, p);
+    for (const p of catalog) map.set(p.slug, p);
     return map;
-  }, []);
+  }, [catalog]);
 
   return (
     <div className="card space-y-5 p-5 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-label text-[10px] text-[#d4af64]">Look slot</p>
-          <h2 className="font-display mt-1 text-2xl md:text-3xl">{form.title || 'Untitled look'}</h2>
+          <p className="font-label text-[10px] text-[#d4af64]">{slotLabel}</p>
+          <h2 className="font-display mt-1 text-2xl md:text-3xl">
+            {form.title || 'Untitled look'}
+          </h2>
         </div>
-        {saved && <p className="text-sm text-emerald-700">Saved</p>}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -190,7 +299,6 @@ export default function LookEditor({ look, onSave }) {
             onClick={onImageClick}
             className={`relative inline-block max-w-full ${marking ? 'cursor-crosshair' : ''}`}
           >
-            {/* Full image, no crop — wrapper hugs the image so % markers stay accurate. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={form.image}
@@ -236,9 +344,13 @@ export default function LookEditor({ look, onSave }) {
       </div>
 
       <div className="space-y-2">
-        <p className="font-label text-[10px] text-[#7a736c]">Hotspots ({form.hotspots.length})</p>
+        <p className="font-label text-[10px] text-[#7a736c]">
+          Hotspots ({form.hotspots.length}) — products from the set
+        </p>
         {form.hotspots.length === 0 && (
-          <p className="text-sm text-[#7a736c]">Turn on Mark, then click the image to place a radiating dot.</p>
+          <p className="text-sm text-[#7a736c]">
+            Turn on Mark, then click the image to place a radiating dot.
+          </p>
         )}
         <ul className="divide-y divide-[#2d2b2b]/8 rounded-2xl border border-[#2d2b2b]/8 bg-white">
           {form.hotspots.map((spot) => {
@@ -247,7 +359,14 @@ export default function LookEditor({ look, onSave }) {
               <li key={spot.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#ebe3da]">
                   {product?.image ? (
-                    <Image src={product.image} alt="" fill className="object-cover" sizes="40px" unoptimized />
+                    <Image
+                      src={product.image}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="40px"
+                      unoptimized
+                    />
                   ) : null}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -276,20 +395,6 @@ export default function LookEditor({ look, onSave }) {
             );
           })}
         </ul>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => {
-            onSave(form);
-            setSaved(true);
-            setTimeout(() => setSaved(false), 1600);
-          }}
-        >
-          Save look
-        </button>
       </div>
 
       {pickerFor && (

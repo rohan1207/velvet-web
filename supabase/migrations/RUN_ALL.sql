@@ -611,3 +611,24 @@ comment on column public.orders.gift_message is 'Optional gift note included wit
 insert into public.schema_migrations (id) values ('014_gift_options')
 on conflict (id) do nothing;
 
+-- 015 homepage complete look (also in 015_homepage_complete_look.sql)
+create table if not exists public.homepage_complete_look (
+  id text primary key default 'default' check (id = 'default'),
+  eyebrow text not null default 'The edit',
+  title text not null default 'Shop the Complete Look',
+  line text not null default 'Tap the lights on each look — then open the matching set beside it.',
+  looks jsonb not null default '[]'::jsonb,
+  featured_set_slugs jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.homepage_complete_look enable row level security;
+
+drop policy if exists "Public read homepage complete look" on public.homepage_complete_look;
+create policy "Public read homepage complete look"
+  on public.homepage_complete_look for select
+  using (true);
+
+insert into public.schema_migrations (id) values ('015_homepage_complete_look')
+on conflict (id) do nothing;
+

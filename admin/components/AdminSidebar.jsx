@@ -15,7 +15,7 @@ const links = [
   { href: '/gift-options', label: 'Gift options', icon: 'gift' },
   { href: '/orders', label: 'Orders', icon: 'bag', badge: true },
   { href: '/customers', label: 'Customers', icon: 'users' },
-  { href: '/looks', label: 'Shop by look', icon: 'look' },
+  { href: '/looks', label: 'Complete look', icon: 'look' },
   { href: '/blogs', label: 'Blogs', icon: 'doc' },
   { href: '/testimonials', label: 'Testimonials', icon: 'quote' },
 ];

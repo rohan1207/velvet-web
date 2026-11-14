@@ -1,26 +1,24 @@
 import ShopByLook from '@/components/ShopByLook';
+import { getCompleteLook } from '@/lib/complete-look';
 import { listActiveSets } from '@/lib/sets';
 
-/** Pearl (S01) + Daisy chain (S02) — same cards as the Sets shop grid. */
-const FEATURED_SLUGS = [
-  'fairy-like-fringed-collarbone-chain-bracelet-with-heart-shaped-pearl-bea',
-  'daisy-necklace-ring-bracelet-set-with-fine-chain-links-s02',
-];
-
 /**
- * Server wrapper — loads live set prices (full-set / price_override) like the shop sets grid.
+ * Server wrapper — loads admin-curated complete look + live set cards.
  */
 export default async function ShopByLookSection() {
+  const config = await getCompleteLook();
+
   let featuredSets = [];
   try {
     const sets = await listActiveSets();
     const bySlug = new Map((sets || []).map((s) => [s.slug, s]));
-    featuredSets = FEATURED_SLUGS.map((slug) => bySlug.get(slug))
+    featuredSets = (config.featuredSetSlugs || [])
+      .map((slug) => bySlug.get(slug))
       .filter(Boolean)
+      .slice(0, 2)
       .map((set) => ({
         slug: set.slug,
         name: set.name,
-        // Full set price: price_override when set, otherwise sum of members (same as sets page)
         price: set.price,
         image: set.image,
         href: `/sets/${set.slug}`,
@@ -38,5 +36,13 @@ export default async function ShopByLookSection() {
     featuredSets = [];
   }
 
-  return <ShopByLook featuredSets={featuredSets} />;
+  return (
+    <ShopByLook
+      eyebrow={config.eyebrow}
+      title={config.title}
+      line={config.line}
+      looks={config.looks}
+      featuredSets={featuredSets}
+    />
+  );
 }

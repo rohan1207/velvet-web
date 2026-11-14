@@ -9,20 +9,19 @@ import { money } from '@/lib/format';
 import { shopCategoryHref } from '@/lib/shop-links';
 import AppImage from '@/components/AppImage';
 
-const looks = [
+/** Fallback only if admin config / live sets are unavailable. */
+const FALLBACK_LOOKS = [
   {
     id: 'pearl-fairy-set',
     image: '/images/look-pearl-set-v2.jpg',
     alt: 'Model wearing the Fairy-Like Fringed pearl collarbone chain and matching bracelet',
     hotspots: [
-      // Silver heart charm on the pearl necklace at collarbone
       {
         id: 'necklace',
         productSlug: 'fairy-like-fringed-collarbone-chain-with-heart-shaped-pearl-bead-nck-016',
         x: 48,
         y: 58,
       },
-      // Matching bracelet on the wrist at the shoulder
       {
         id: 'bracelet',
         productSlug: 'fairy-like-fringed-bracelet-with-heart-shaped-pearl-bead-brc-028',
@@ -36,21 +35,18 @@ const looks = [
     image: '/images/look-daisy-set-v2.jpg',
     alt: 'Model wearing the Daisy necklace, ring and bracelet set with fine chain links',
     hotspots: [
-      // Daisy pendant on the collarbone
       {
         id: 'necklace',
         productSlug: 'daisy-necklace-with-fine-chain-links-ywje0076',
         x: 51,
         y: 45,
       },
-      // Daisy ring on the raised hand
       {
         id: 'ring',
         productSlug: 'daisy-ring-with-fine-chain-links-ywje0077',
         x: 33,
         y: 52,
       },
-      // Daisy bracelet on the wrist
       {
         id: 'bracelet',
         productSlug: 'daisy-bracelet-with-fine-chain-links-ywje0075',
@@ -61,7 +57,6 @@ const looks = [
   },
 ];
 
-/** Fallback only if live set data is unavailable — prices match live member sums. */
 const FALLBACK_SETS = [
   {
     slug: 'fairy-like-fringed-collarbone-chain-bracelet-with-heart-shaped-pearl-bea',
@@ -291,8 +286,18 @@ function SetPromoCard({ set }) {
   );
 }
 
-export default function ShopByLook({ featuredSets }) {
+export default function ShopByLook({
+  eyebrow = 'The edit',
+  title = 'Shop the Complete Look',
+  line = 'Tap the lights on each look — then open the matching set beside it.',
+  looks,
+  featuredSets,
+}) {
   const setsHref = shopCategoryHref('sets');
+  const lookCards =
+    Array.isArray(looks) && looks.some((l) => l?.image)
+      ? looks.filter((l) => l?.image).slice(0, 2)
+      : FALLBACK_LOOKS;
   const setCards =
     Array.isArray(featuredSets) && featuredSets.length > 0 ? featuredSets : FALLBACK_SETS;
 
@@ -301,13 +306,16 @@ export default function ShopByLook({ featuredSets }) {
       <div className="mx-auto w-full max-w-[1600px]">
         <div className="mb-4 flex flex-col gap-2 sm:mb-5 md:flex-row md:items-end md:justify-between">
           <div className="min-w-0">
-            <p className="font-label text-[10px] tracking-[0.22em] text-gold uppercase">The edit</p>
+            <p className="font-label text-[10px] tracking-[0.22em] text-gold uppercase">
+              {eyebrow || 'The edit'}
+            </p>
             <h2 className="font-display mt-2 max-w-2xl text-[1.85rem] leading-[1.08] text-ink sm:text-3xl md:text-5xl">
-              Shop by look
+              {title || 'Shop the Complete Look'}
             </h2>
           </div>
           <p className="max-w-sm text-[13px] font-light leading-relaxed text-ink/75 sm:text-sm">
-            Tap the lights on each look — then open the matching set beside it.
+            {line ||
+              'Tap the lights on each look — then open the matching set beside it.'}
           </p>
         </div>
 
@@ -315,7 +323,7 @@ export default function ShopByLook({ featuredSets }) {
         <div className="flex w-full flex-col gap-3 sm:gap-4 lg:h-[min(82svh,46rem)] lg:flex-row lg:items-stretch lg:justify-between lg:gap-5 xl:gap-6">
           {/* Left-aligned model pair — fills most of the viewport height */}
           <div className="grid min-h-0 w-full grid-cols-2 gap-2.5 sm:gap-3 lg:h-full lg:min-w-0 lg:flex-1 lg:self-stretch">
-            {looks.map((look) => (
+            {lookCards.map((look) => (
               <LookCard key={look.id} look={look} />
             ))}
           </div>
