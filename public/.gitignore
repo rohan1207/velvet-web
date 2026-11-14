@@ -1,0 +1,8 @@
+# Keep logos/favicons in git; skip heavy site media (R2/backend hosts these).
+images/
+categories/
+hero/
+flower-frames/
+*.mp4
+*.webm
+*.mov

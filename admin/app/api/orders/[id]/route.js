@@ -1,0 +1,211 @@
+import { NextResponse } from 'next/server';
+import { readSessionFromRequest } from '@/lib/session';
+import { createAdminSupabase } from '@/lib/supabase';
+import { allowInsecureTlsIfConfigured } from '@/lib/tls';
+import { cancelShipment } from '@/lib/delivery/delhivery';
+
+const ADMIN_TO_DB = {
+  pending: 'pending_payment',
+  accepted: 'paid',
+  packed: 'processing',
+  dispatched: 'shipped',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+};
+
+const DB_TO_ADMIN = {
+  pending_payment: 'pending',
+  paid: 'accepted',
+  processing: 'packed',
+  shipped: 'dispatched',
+  delivered: 'delivered',
+  cancelled: 'cancelled',
+  refunded: 'cancelled',
+};
+
+function mapOrder(row) {
+  const ship = row.shipping || {};
+  const items = row.order_items || [];
+  return {
+    id: row.id,
+    orderNumber: row.order_number,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    status: DB_TO_ADMIN[row.status] || row.status,
+    dbStatus: row.status,
+    email: row.email,
+    total: row.total,
+    subtotal: row.subtotal,
+    shippingFee: row.shipping_fee,
+    discountCode: row.discount_code || '',
+    discountAmount: Number(row.discount_amount) || 0,
+    giftWrap: Boolean(row.gift_wrap),
+    giftWrapFee: Number(row.gift_wrap_fee) || 0,
+    giftMessage: row.gift_message || '',
+    customer: {
+      firstName: ship.firstName || ship.fullName?.split(' ')[0] || '',
+      lastName: ship.lastName || ship.fullName?.split(' ').slice(1).join(' ') || '',
+      phone: ship.phone || '',
+      email: row.email,
+    },
+    shipping: {
+      ...ship,
+      address: ship.line1 || ship.address || '',
+    },
+    items: items.map((it) => ({
+      slug: it.product_slug,
+      name: it.product_name,
+      image: it.image_url,
+      qty: it.qty,
+      price: it.unit_price,
+      lineTotal: it.line_total ?? (it.unit_price || 0) * (it.qty || 1),
+      size: it.size,
+      metal: it.metal,
+      sku: it.sku || '',
+      colorLabel: it.color_label || '',
+      customization: Array.isArray(it.customization) ? it.customization : [],
+    })),
+    currency: row.currency || 'INR',
+    notes: row.notes || '',
+    paymentMethod: 'Razorpay',
+    paymentId: null,
+    razorpayOrderId: row.razorpay_order_id,
+    courier: row.courier || '',
+    awb: row.awb || '',
+    trackingUrl: row.tracking_url || '',
+    shipmentStatus: row.shipment_status || '',
+    shippedAt: row.shipped_at || null,
+    deliveredAt: row.delivered_at || null,
+  };
+}
+
+export async function GET(request, { params }) {
+  if (!readSessionFromRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  allowInsecureTlsIfConfigured();
+
+  try {
+    const { id } = await params;
+    const db = createAdminSupabase();
+    let query = db.from('orders').select('*, order_items(*)');
+
+    const byId = await query.eq('id', id).maybeSingle();
+    let row = byId.data;
+    if (!row) {
+      const byNum = await db
+        .from('orders')
+        .select('*, order_items(*)')
+        .eq('order_number', id)
+        .maybeSingle();
+      row = byNum.data;
+    }
+    if (!row) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const order = mapOrder(row);
+    // Backfill SKU / colour for older lines that predate migration 011.
+    const needSku = (order.items || []).filter((it) => !it.sku && it.slug);
+    if (needSku.length) {
+      const slugs = [...new Set(needSku.map((it) => it.slug))];
+      const { data: variants } = await db
+        .from('product_color_variants')
+        .select('slug, features, color_label')
+        .in('slug', slugs);
+      const bySlug = Object.fromEntries((variants || []).map((v) => [v.slug, v]));
+      order.items = order.items.map((it) => {
+        if (it.sku) return it;
+        const v = bySlug[it.slug];
+        if (!v) return it;
+        const fromFeatures = Array.isArray(v.features)
+          ? String(v.features.find((f) => /^SKU\s/i.test(String(f))) || '').replace(
+              /^SKU\s+/i,
+              '',
+            )
+          : '';
+        return {
+          ...it,
+          sku: fromFeatures.trim() || it.sku,
+          colorLabel: it.colorLabel || v.color_label || '',
+        };
+      });
+    }
+
+    return NextResponse.json({ order });
+  } catch (err) {
+    return NextResponse.json({ error: err.message || 'Failed' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request, { params }) {
+  if (!readSessionFromRequest(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  allowInsecureTlsIfConfigured();
+
+  try {
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const status = body.status;
+    const dbStatus = ADMIN_TO_DB[status] || status;
+    if (!dbStatus) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
+    const db = createAdminSupabase();
+
+    const { data: existing, error: loadErr } = await db
+      .from('orders')
+      .select('id,status,awb,shipment_status,courier')
+      .eq('id', id)
+      .maybeSingle();
+    if (loadErr) throw loadErr;
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+
+    const patch = {
+      status: dbStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    let shipmentCancel = null;
+    const becomingCancelled = dbStatus === 'cancelled';
+    const hadAwb = Boolean(String(existing.awb || '').trim());
+    const alreadyTerminal = ['cancelled', 'refunded'].includes(existing.status);
+
+    if (becomingCancelled && hadAwb && !alreadyTerminal) {
+      try {
+        shipmentCancel = await cancelShipment(existing.awb);
+        patch.shipment_status = 'Cancelled';
+      } catch (cancelErr) {
+        console.error('[orders] Delhivery cancel failed', cancelErr);
+        return NextResponse.json(
+          {
+            error:
+              cancelErr.message ||
+              'Could not cancel Delhivery shipment. Order was not cancelled.',
+          },
+          { status: 502 },
+        );
+      }
+    }
+
+    const { data, error } = await db
+      .from('orders')
+      .update(patch)
+      .eq('id', id)
+      .select('*, order_items(*)')
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({
+      order: mapOrder(data),
+      shipmentCancelled: Boolean(shipmentCancel),
+      shipmentRemark: shipmentCancel?.remark || '',
+    });
+  } catch (err) {
+    return NextResponse.json({ error: err.message || 'Failed' }, { status: 500 });
+  }
+}

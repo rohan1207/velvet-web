@@ -1,0 +1,270 @@
+'use client';
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
+import ResponsiveBannerImage from '@/components/ResponsiveBannerImage';
+import { shopCategoryHref } from '@/lib/shop-links';
+
+const AUTO_MS = 2800; // continuous forward cycle (crossfade), 2.5–3s hold
+const EASE = [0.45, 0.05, 0.25, 1];
+
+const slides = [
+  {
+    id: 'earrings',
+    label: 'Earrings',
+    index: '01',
+    titleLead: 'Shop',
+    titleAccent: 'earrings',
+    description: 'Drops, hoops, and studs in silver and gold.',
+    cta: 'Shop earrings',
+    href: shopCategoryHref('earrings'),
+    image: '/images/category-banner-earrings.jpg',
+    alt: 'Gold orchid earrings among white blooms',
+  },
+  {
+    id: 'necklace',
+    label: 'Necklaces',
+    index: '02',
+    titleLead: 'Shop',
+    titleAccent: 'necklaces',
+    description: 'Pendants and chains for the collarbone.',
+    cta: 'Shop necklaces',
+    href: shopCategoryHref('necklaces'),
+    image: '/images/category-banner-necklaces.jpg',
+    alt: 'Silver floral pendant on a white lily',
+  },
+  {
+    id: 'rings',
+    label: 'Rings',
+    index: '03',
+    titleLead: 'Shop',
+    titleAccent: 'rings',
+    description: 'Sculptural forms made to be worn and kept.',
+    cta: 'Shop rings',
+    href: shopCategoryHref('rings'),
+    image: '/images/category-banner-rings.jpg',
+    alt: 'Floral rings on living branches',
+  },
+  {
+    id: 'bracelets',
+    label: 'Bracelets',
+    index: '04',
+    titleLead: 'Shop',
+    titleAccent: 'bracelets',
+    description: 'Soft forms for the wrist.',
+    cta: 'Shop bracelets',
+    href: shopCategoryHref('bracelets'),
+    image: '/images/category-banner-bracelets.jpg',
+    alt: 'Bracelets among clover leaves in soft forest light',
+  },
+];
+
+export default function HeroBanners() {
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
+  const [paused, setPaused] = useState(false);
+  const [progressKey, setProgressKey] = useState(0);
+  const locked = useRef(false);
+
+  const goTo = useCallback(
+    (next, dir = 1) => {
+      if (locked.current) return;
+      locked.current = true;
+      setDirection(dir);
+      setIndex(((next % slides.length) + slides.length) % slides.length);
+      setProgressKey((k) => k + 1);
+      window.setTimeout(() => {
+        locked.current = false;
+      }, 900);
+    },
+    []
+  );
+
+  const next = useCallback(() => goTo(index + 1, 1), [goTo, index]);
+  const prev = useCallback(() => goTo(index - 1, -1), [goTo, index]);
+
+  useEffect(() => {
+    if (paused) return undefined;
+    const timer = window.setInterval(() => {
+      goTo(index + 1, 1);
+    }, AUTO_MS);
+    return () => window.clearInterval(timer);
+  }, [paused, index, goTo]);
+
+  const slide = slides[index];
+
+  return (
+    <section
+      className="hero relative h-[100svh] min-h-[680px] overflow-hidden bg-[#ebe4d8]"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* Stacked slides — crossfade + soft lateral drift, never blank */}
+      <div className="absolute inset-0">
+        {slides.map((item, i) => {
+          const active = i === index;
+          return (
+            <motion.div
+              key={item.id}
+              className="absolute inset-0"
+              initial={false}
+              animate={{
+                opacity: active ? 1 : 0,
+                x: active ? 0 : direction > 0 ? -28 : 28,
+                zIndex: active ? 2 : 1,
+              }}
+              transition={{ duration: 1.05, ease: EASE }}
+              style={{ pointerEvents: active ? 'auto' : 'none' }}
+            >
+              <ResponsiveBannerImage
+                src={item.image}
+                alt={item.alt}
+                priority={i === 0}
+                className="object-cover object-center md:object-[72%_center]"
+              />
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Soft left wash for type — no hard flash */}
+      <div className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-r from-[#ebe4d8]/95 via-[#ebe4d8]/55 to-transparent md:from-[#ebe4d8]/92 md:via-[#ebe4d8]/38 md:w-[62%] md:to-transparent" />
+      <div className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-t from-[#2D2B2B]/20 via-transparent to-transparent" />
+
+      {/* Left editorial panel */}
+      <div className="absolute inset-0 z-10 flex items-center pt-20 md:pt-24">
+        <div className="mx-auto flex w-full max-w-[1600px] items-stretch gap-8 px-5 md:px-10">
+          <div className="relative max-w-xl pb-24 pt-40 md:max-w-[36rem] md:pb-16 md:pt-40">
+            <AnimatePresence initial={false}>
+              <motion.div
+                key={slide.id}
+                className="absolute inset-x-0 top-0"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.75, ease: EASE }}
+              >
+                <div className="flex items-center gap-4">
+                  <span className="font-display text-5xl leading-none tracking-[-0.04em] text-[#5E062A]/18 md:text-6xl">
+                    {slide.index}
+                  </span>
+                  <p className="text-[11px] tracking-[0.22em] text-[#2D2B2B]/45 uppercase">{slide.label}</p>
+                </div>
+
+                <h1 className="font-display mt-7 text-[2.85rem] leading-[1.08] tracking-[-0.02em] text-ink sm:text-5xl md:text-[3.75rem] lg:text-[4.25rem]">
+                  <span className="block">{slide.titleLead}</span>
+                  <span className="font-display-italic mt-1 block text-burgundy">{slide.titleAccent}</span>
+                </h1>
+
+                <div className="mt-7 flex items-start gap-4">
+                  <span className="mt-2 h-px w-10 shrink-0 bg-[#D4AF64]/70" />
+                  <p className="max-w-md text-[15px] leading-[1.75] text-[#2D2B2B]/72 md:text-[16px]">
+                    {slide.description}
+                  </p>
+                </div>
+
+                <div className="mt-9 flex flex-wrap items-center gap-3">
+                  <Link
+                    href={slide.href}
+                    data-cursor="Shop"
+                    className="bg-velvet-texture inline-flex items-center rounded-full px-8 py-3.5 text-[12px] font-semibold tracking-[0.14em] text-white uppercase transition-transform duration-500 hover:scale-[1.02]"
+                  >
+                    {slide.cta}
+                  </Link>
+                  <Link
+                    href="/about"
+                    className="inline-flex items-center gap-2 rounded-full border border-[#2D2B2B]/12 bg-white/40 px-6 py-3.5 text-[12px] font-medium tracking-[0.14em] text-[#2D2B2B] uppercase transition-colors duration-500 hover:bg-white/70"
+                  >
+                    About us
+                    <span aria-hidden className="text-[#D4AF64]">
+                      →
+                    </span>
+                  </Link>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+            {/* Spacer so absolute text stack keeps layout height */}
+            <div className="invisible pointer-events-none" aria-hidden>
+              <div className="flex items-center gap-4">
+                <span className="font-display text-5xl md:text-6xl">00</span>
+                <div>
+                  <p className="text-[10px] tracking-[0.36em] uppercase">Shell Edit</p>
+                  <p className="mt-1 text-[11px] tracking-[0.22em] uppercase">Earrings</p>
+                </div>
+              </div>
+              <h1 className="font-display mt-7 text-[2.85rem] leading-[1.02] sm:text-5xl md:text-[3.75rem] lg:text-[4.25rem]">
+                <span className="block font-semibold">Foam and metal,</span>
+                <span className="mt-1 block font-semibold">worn softly.</span>
+              </h1>
+              <div className="mt-7 flex gap-4">
+                <span className="mt-2 h-px w-10" />
+                <p className="max-w-md text-[15px] leading-[1.75] md:text-[16px]">
+                  Pearl lines and sculptural cuffs — a soft conversation for the wrist.
+                </p>
+              </div>
+              <div className="mt-9 h-12" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="absolute inset-x-0 bottom-0 z-20">
+        <div className="mx-auto flex max-w-[1600px] items-end justify-between gap-6 px-5 pb-7 md:px-10 md:pb-9">
+          <div className="flex flex-wrap gap-2">
+            {slides.map((item, i) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => goTo(i, i > index ? 1 : -1)}
+                className={`rounded-full px-3.5 py-1.5 text-[10px] font-semibold tracking-[0.16em] uppercase transition-all duration-500 ${
+                  i === index
+                    ? 'bg-velvet-texture text-white'
+                    : 'border border-[#2D2B2B]/10 bg-white/45 text-[#2D2B2B]/55 hover:bg-white/75'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <span className="font-display hidden text-sm tracking-[-0.02em] text-[#2D2B2B]/40 sm:inline">
+              {slide.index} — 0{slides.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Previous slide"
+                onClick={prev}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#2D2B2B]/10 bg-white/45 text-[#2D2B2B] transition-colors duration-500 hover:bg-white"
+              >
+                ←
+              </button>
+              <button
+                type="button"
+                aria-label="Next slide"
+                onClick={next}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#2D2B2B]/10 bg-white/45 text-[#2D2B2B] transition-colors duration-500 hover:bg-white"
+              >
+                →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-[1.5px] w-full bg-[#2D2B2B]/08">
+          <motion.div
+            key={`progress-${progressKey}-${paused}`}
+            className="h-full origin-left bg-[#5E062A]"
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: paused ? 0 : 1 }}
+            transition={{ duration: paused ? 0.35 : AUTO_MS / 1000, ease: 'linear' }}
+            style={{ transformOrigin: 'left center' }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
