@@ -1,8 +1,4 @@
-# Keep logos/favicons in git; skip heavy site media (R2/backend hosts these).
-images/
-categories/
-hero/
-flower-frames/
+# Videos stay local / on CDN — too large for git push on this network
 *.mp4
 *.webm
 *.mov

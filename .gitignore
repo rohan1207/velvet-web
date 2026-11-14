@@ -39,15 +39,11 @@ yarn-error.log*
 /public/products/
 /public/final_products_combined/
 
-# large local media (hosted elsewhere / not needed in git)
+# keep huge binaries out of git (upload videos/PDFs to R2/CDN instead)
 *.mp4
 *.webm
 *.mov
 /*.pdf
-/public/flower-frames/
-/public/images/
-/public/categories/
-/public/hero/
 _git_trace.log
 **/_git_trace.log
 *.lnk
