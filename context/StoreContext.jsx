@@ -372,9 +372,16 @@ export function StoreProvider({ children }) {
       giftWrapFee: cartGiftWrapFee,
     });
     const cartMerchandise = money.merchandisePayable;
-    const cartShippingFee = cart.length ? money.shippingFee : 0;
+    // ₹5 (or less) product carts never get shipping — keep in sync with lib/shipping-fee.js
+    const cartShippingFee = !cart.length
+      ? 0
+      : cartMerchandise <= 5
+        ? 0
+        : money.shippingFee;
     // Final amount charged (merchandise + shipping + gift wrap)
-    const cartPayable = cart.length ? money.total : 0;
+    const cartPayable = cart.length
+      ? cartMerchandise + cartShippingFee + cartGiftWrapFee
+      : 0;
 
     function buildCartLine(slug, options = {}) {
       const product = getProduct(slug);
