@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/context/StoreContext';
@@ -24,6 +24,8 @@ const emptyForm = {
   country: 'India',
 };
 
+const PENDING_CHECKOUT_KEY = 'vs-pending-checkout';
+
 export default function CheckoutPage() {
   const router = useRouter();
   const {
@@ -45,15 +47,20 @@ export default function CheckoutPage() {
     selectAddress,
     addAddress,
     placeOrder,
+    clearCart,
+    refreshOrders,
     getProduct,
   } = useStore();
 
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [paying, setPaying] = useState(false);
+  const [payStatus, setPayStatus] = useState('');
   const [successOrder, setSuccessOrder] = useState(null);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [savingAddr, setSavingAddr] = useState(false);
+  const pollRef = useRef(null);
+  const finishingRef = useRef(false);
 
   useEffect(() => {
     if (!ready) return;
@@ -61,6 +68,12 @@ export default function CheckoutPage() {
       router.replace('/account?next=/checkout');
     }
   }, [ready, user, router]);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -136,16 +149,9 @@ export default function CheckoutPage() {
     }
   }
 
-  async function finalizeOrder({
-    paymentId,
-    paymentMethod,
-    demo = false,
-    razorpayOrderId,
-    razorpaySignature,
-  }) {
+  function buildShipping() {
     const { firstName, lastName } = splitName(form.fullName);
-
-    const shipping = {
+    return {
       firstName,
       lastName,
       fullName: form.fullName,
@@ -160,7 +166,73 @@ export default function CheckoutPage() {
       country: form.country || 'India',
       addressId: selectedAddressId || null,
     };
+  }
 
+  function buildCheckoutBody(extra = {}) {
+    return {
+      items: cart,
+      shipping: buildShipping(),
+      email: form.email,
+      discountCode: promo?.code || '',
+      giftWrap,
+      giftMessage,
+      total: cartPayable,
+      subtotal: cartTotal,
+      shippingFee: cartShippingFee,
+      ...extra,
+    };
+  }
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  function isConfirmedPaidOrder(order) {
+    if (!order) return false;
+    const db = String(order.dbStatus || '').toLowerCase();
+    if (['paid', 'processing', 'shipped', 'delivered'].includes(db)) return true;
+    const ui = String(order.status || '');
+    return ['Confirmed', 'Processing', 'Shipped', 'Delivered'].includes(ui);
+  }
+
+  async function applyPaidOrder(order) {
+    // Hard gate: never show success / clear cart unless order is actually paid.
+    if (!isConfirmedPaidOrder(order)) {
+      finishingRef.current = false;
+      setPaying(false);
+      setPayStatus('');
+      setError('Payment was not completed. No order was placed.');
+      return;
+    }
+    try {
+      sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+      sessionStorage.setItem('vs-order', JSON.stringify(order));
+    } catch {
+      /* ignore */
+    }
+    clearCart();
+    try {
+      await refreshOrders();
+    } catch {
+      /* ignore */
+    }
+    setError('');
+    setSuccessOrder(order);
+    setPaying(false);
+    setPayStatus('');
+    finishingRef.current = false;
+  }
+
+  async function finalizeOrder({
+    paymentId,
+    paymentMethod,
+    demo = false,
+    razorpayOrderId,
+    razorpaySignature,
+  }) {
     const order = await placeOrder({
       total: cartPayable,
       subtotal: cartTotal,
@@ -169,7 +241,7 @@ export default function CheckoutPage() {
       giftWrap,
       giftMessage,
       items: cart,
-      shipping,
+      shipping: buildShipping(),
       paymentId,
       paymentMethod: demo ? 'Demo (Razorpay pending keys)' : paymentMethod,
       email: form.email,
@@ -179,14 +251,115 @@ export default function CheckoutPage() {
       razorpaySignature,
     });
 
-    sessionStorage.setItem('vs-order', JSON.stringify(order));
+    if (!isConfirmedPaidOrder(order)) {
+      setError('Payment was not completed. No order was placed.');
+      setPaying(false);
+      setPayStatus('');
+      return;
+    }
+
+    try {
+      sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+      sessionStorage.setItem('vs-order', JSON.stringify(order));
+    } catch {
+      /* ignore */
+    }
+    setError('');
     setSuccessOrder(order);
     setPaying(false);
+    setPayStatus('');
   }
+
+  function readPendingCheckout() {
+    try {
+      return JSON.parse(sessionStorage.getItem(PENDING_CHECKOUT_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  /** Server asks Razorpay if this order is paid (fixes live UPI when handler never fires). */
+  async function syncPaidCheckout(razorpayOrderId, extra = {}) {
+    if (!razorpayOrderId || finishingRef.current) return false;
+    const pending = readPendingCheckout();
+    const body =
+      pending?.razorpayOrderId === razorpayOrderId
+        ? { ...pending, ...extra, razorpayOrderId }
+        : buildCheckoutBody({ razorpayOrderId, ...extra });
+    const res = await fetch('/api/razorpay/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Payment sync failed');
+    if (data.paid && data.order) {
+      finishingRef.current = true;
+      stopPolling();
+      setPayStatus('Payment received — confirming order…');
+      await applyPaidOrder(data.order);
+      return true;
+    }
+    return false;
+  }
+
+  function startPaymentPoll(razorpayOrderId) {
+    stopPolling();
+    pollRef.current = setInterval(() => {
+      syncPaidCheckout(razorpayOrderId).catch(() => {
+        /* keep polling */
+      });
+    }, 2500);
+  }
+
+  // Resume fulfilment if customer paid but browser handler never ran (refresh / return).
+  useEffect(() => {
+    if (!ready || !user || successOrder) return;
+    let cancelled = false;
+    (async () => {
+      let pending = null;
+      try {
+        pending = JSON.parse(sessionStorage.getItem(PENDING_CHECKOUT_KEY) || 'null');
+      } catch {
+        pending = null;
+      }
+      if (!pending?.razorpayOrderId || !pending?.items?.length) return;
+      setPaying(true);
+      setPayStatus('Checking your payment…');
+      try {
+        const res = await fetch('/api/razorpay/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(pending),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data.paid && data.order) {
+          finishingRef.current = true;
+          await applyPaidOrder(data.order);
+          return;
+        }
+        setPaying(false);
+        setPayStatus('');
+      } catch {
+        if (!cancelled) {
+          setPaying(false);
+          setPayStatus('');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot recovery on mount
+  }, [ready, user, successOrder]);
 
   async function onPay(event) {
     event.preventDefault();
     setError('');
+    setPayStatus('');
 
     if (!user) {
       router.replace('/account?next=/checkout');
@@ -204,6 +377,8 @@ export default function CheckoutPage() {
     }
 
     setPaying(true);
+    setPayStatus('Opening Razorpay…');
+    finishingRef.current = false;
     try {
       const orderRes = await fetch('/api/razorpay/order', {
         method: 'POST',
@@ -224,6 +399,13 @@ export default function CheckoutPage() {
           demo: true,
         });
         return;
+      }
+
+      const pendingSnapshot = buildCheckoutBody({ razorpayOrderId: orderData.orderId });
+      try {
+        sessionStorage.setItem(PENDING_CHECKOUT_KEY, JSON.stringify(pendingSnapshot));
+      } catch {
+        /* ignore */
       }
 
       const scriptReady = await loadRazorpayScript();
@@ -248,6 +430,14 @@ export default function CheckoutPage() {
         theme: { color: '#5E062A' },
         handler: async (response) => {
           try {
+            setPayStatus('Payment received — confirming order…');
+            stopPolling();
+            const synced = await syncPaidCheckout(response.razorpay_order_id, {
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            if (synced) return;
+
             const verifyRes = await fetch('/api/razorpay/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -266,22 +456,58 @@ export default function CheckoutPage() {
           } catch (err) {
             setError(err.message || 'Payment could not be verified');
             setPaying(false);
+            setPayStatus('');
           }
         },
         modal: {
-          ondismiss: () => setPaying(false),
+          ondismiss: async () => {
+            // User closed Razorpay (cancel / back). Only succeed if money was already captured.
+            setPayStatus('Checking whether payment completed…');
+            try {
+              const paid = await syncPaidCheckout(orderData.orderId);
+              if (paid) return;
+            } catch (err) {
+              setError(err.message || 'Could not confirm payment');
+              stopPolling();
+              setPaying(false);
+              setPayStatus('');
+              return;
+            }
+            stopPolling();
+            setPaying(false);
+            setPayStatus('');
+            // Keep vs-pending-checkout so a slow UPI capture can still confirm on refresh.
+            setError(
+              'Payment not completed yet. No order is confirmed. If money was deducted, stay on this page or refresh — we will confirm only after Razorpay marks it paid.',
+            );
+          },
         },
       });
 
       rzp.on('payment.failed', (response) => {
-        setError(response?.error?.description || 'Payment failed. Please try again.');
+        stopPolling();
+        // Failed / insufficient funds / bank decline — never create a success order.
+        setError(
+          response?.error?.description ||
+            'Payment failed. No order was placed. Please try again.',
+        );
         setPaying(false);
+        setPayStatus('');
+        try {
+          sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+        } catch {
+          /* ignore */
+        }
       });
 
+      setPayStatus('Waiting for payment…');
+      startPaymentPoll(orderData.orderId);
       rzp.open();
     } catch (err) {
+      stopPolling();
       setError(err.message || 'Something went wrong');
       setPaying(false);
+      setPayStatus('');
     }
   }
 
@@ -321,7 +547,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="min-h-[100svh] overflow-x-clip bg-gradient-to-b from-[#faf6f1] to-ivory pt-page pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-20">
-      {successOrder && (
+      {successOrder && isConfirmedPaidOrder(successOrder) && (
         <SuccessModal
           order={successOrder}
           onContinue={() => router.push('/account?tab=orders')}
@@ -525,7 +751,7 @@ export default function CheckoutPage() {
             className="bg-velvet-texture mt-7 inline-flex h-[3.25rem] w-full items-center justify-center rounded-full px-6 font-label text-[11px] tracking-[0.18em] text-ivory disabled:opacity-60 sm:mt-8 sm:h-[3.25rem] sm:w-auto sm:min-w-[260px] sm:px-8 sm:tracking-[0.2em]"
           >
             {paying ? (
-              'Opening Razorpay…'
+              payStatus || 'Opening Razorpay…'
             ) : (
               <>
                 Pay securely · <span className="font-num">{money(cartPayable)}</span>
@@ -534,6 +760,9 @@ export default function CheckoutPage() {
           </button>
           <p className="mt-3 text-xs font-light text-ink/55">
             Card details are collected by Razorpay — never on this page.
+            {paying
+              ? ' Keep this tab open until you see the order confirmation.'
+              : ''}
           </p>
         </form>
       </div>

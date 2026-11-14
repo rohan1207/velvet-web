@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { allowDemoCheckout, razorpayLiveConfigured } from '@/lib/razorpay/verify-payment';
+import { getRazorpayKeys } from '@/lib/razorpay/client';
 
 export async function POST(request) {
   try {
@@ -11,10 +13,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const { keyId, keySecret } = getRazorpayKeys();
 
-    if (!keyId || !keySecret) {
+    if (!razorpayLiveConfigured()) {
+      if (!allowDemoCheckout()) {
+        return NextResponse.json(
+          {
+            error:
+              'Razorpay is not configured on this server. Orders cannot be charged.',
+          },
+          { status: 503 },
+        );
+      }
       return NextResponse.json({
         demo: true,
         key: keyId || null,
@@ -22,7 +32,7 @@ export async function POST(request) {
         currency,
         receipt,
         message:
-          'Razorpay keys missing. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to .env.local — demo checkout will simulate success.',
+          'Razorpay keys missing (local only). Demo checkout simulates success — never in production.',
       });
     }
 
@@ -34,7 +44,7 @@ export async function POST(request) {
       currency,
       receipt,
       notes: {
-        source: 'velvet-shell-demo',
+        source: 'velvet-shell',
       },
     });
 
@@ -50,7 +60,7 @@ export async function POST(request) {
     console.error('Razorpay order error:', error);
     return NextResponse.json(
       { error: error?.message || 'Unable to create payment order' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
