@@ -45,7 +45,7 @@ RESEND_FROM_EMAIL=Velvet Shell <sales@velvetshell.in>
 ORDERS_NOTIFY_EMAIL=info.velvetshell@gmail.com,sales@velvetshell.in
 RESEND_TO_OWNER=info.velvetshell@gmail.com,sales@velvetshell.in
 GIFTING_NOTIFY_EMAIL=info.velvetshell@gmail.com
-NEXT_PUBLIC_SITE_URL=https://velvetshell.com
+NEXT_PUBLIC_SITE_URL=https://velvetshell.in
 ```
 
 After deploy, use admin order → **Resend order email** / **Resend tracking email** to re-send the new templates for an existing order.

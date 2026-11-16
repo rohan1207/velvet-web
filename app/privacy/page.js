@@ -203,7 +203,7 @@ export default function PrivacyPage() {
             <h2 className="font-display mt-3 text-3xl text-ink">Velvet Shell</h2>
             <div className="mt-5 space-y-2 text-[15px] font-light leading-relaxed text-ink/80">
               <p>Velvet Shell</p>
-              <p>velvetshell.com</p>
+              <p>velvetshell.in</p>
               <ContactPlaceholders />
               <p>
                 Email:{' '}

@@ -89,7 +89,7 @@ Use the email/password you put in `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env.loca
 1. Create an account at [https://resend.com](https://resend.com).
 2. Create an API key → `RESEND_API_KEY`.
 3. Until you verify a domain, use `RESEND_FROM_EMAIL=Velvet Shell <onboarding@resend.dev>` and send only to **your own** Resend account email.
-4. For production: verify `velvetshell.com` (or your domain) in Resend and set `RESEND_FROM_EMAIL` to something like `Velvet Shell <hello@yourdomain.com>`.
+4. For production: verify `velvetshell.in` in Resend and set `RESEND_FROM_EMAIL` to something like `Velvet Shell <sales@velvetshell.in>`.
 
 Without Resend in production, forgot-password will error. In local/dev without a key, the OTP is printed to the **server console** so you can still test.
 

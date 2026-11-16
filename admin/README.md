@@ -1,6 +1,6 @@
 # Velvet Shell Admin
 
-Separate Next.js admin console for house operations. Deploy independently (e.g. `admin.velvetshell.com`).
+Separate Next.js admin console for house operations. Deploy independently (e.g. `admin.velvetshell.in`).
 
 ## Local
 
@@ -21,7 +21,7 @@ npm run dev                  # http://localhost:3001
 
 Default local login (from `.env.local`):
 
-- Email: `owner@velvetshell.com`
+- Email: `owner@velvetshell.in`
 - Password: `velvetadmin123`
 
 Product/testimonial thumbnails use relative paths from the storefront `public/` tree. Run the shop on `:3000` (or set `STOREFRONT_ORIGIN`) so media rewrites resolve.
@@ -30,7 +30,7 @@ Product/testimonial thumbnails use relative paths from the storefront `public/` 
 
 1. New project → root directory = `admin`
 2. Set env: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET`
-3. Domain: `admin.velvetshell.com`
+3. Domain: `admin.velvetshell.in`
 
 ## Data
 
