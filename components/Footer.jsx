@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import SocialLinks from '@/components/SocialIcons';
+import { BUSINESS_HOURS_LINE } from '@/lib/contact';
 
 const columns = [
   {
@@ -76,6 +77,7 @@ export default function Footer() {
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-ivory/85 md:mt-5">
               Jewellery, gifting & lifestyle creations, shaped by considered design and quiet intrigue.
             </p>
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-ivory/75">{BUSINESS_HOURS_LINE}</p>
             <form className="mt-6 max-w-sm md:mt-8" action="/contact">
               <label className="font-label text-gold">Stay in touch</label>
               <p className="mt-2 text-sm leading-relaxed text-ivory/80">

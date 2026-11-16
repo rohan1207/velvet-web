@@ -128,7 +128,9 @@ function AccountInner() {
           <div className="min-w-0 flex-1">
             <p className="font-label text-[10px] tracking-[0.24em] text-gold uppercase">My account</p>
             <h1 className="font-display mt-2 text-[1.85rem] tracking-[-0.03em] text-burgundy sm:mt-3 sm:text-4xl md:text-5xl">
-              Hello, {user.firstName || user.fullName?.split(' ')[0] || 'there'}
+              {user.firstName || user.fullName?.split(' ')[0]
+                ? `Hello, ${user.firstName || user.fullName.split(' ')[0]}`
+                : 'Hello'}
             </h1>
             <p className="mt-1.5 truncate text-[13px] font-light text-ink/70 sm:mt-2 sm:text-sm">
               {user.email}

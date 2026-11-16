@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BUSINESS_HOURS_LINE, getContactDetails } from '@/lib/contact';
 
 export const metadata = {
   title: 'Privacy Policy',
@@ -53,7 +54,7 @@ export default function PrivacyPage() {
               If you have opted in to receive communications from us and later change your mind, you
               may withdraw your consent at any time by contacting us at:
             </p>
-            <ContactPlaceholders />
+            <ContactDetails />
             <p>
               You may also unsubscribe from promotional emails using the unsubscribe option provided
               in the communication.
@@ -180,7 +181,7 @@ export default function PrivacyPage() {
             <p>For any such request, please contact:</p>
             <div className="mt-4 space-y-1 text-ink/80">
               <p className="font-display text-xl text-ink">Velvet Shell</p>
-              <ContactPlaceholders />
+              <ContactDetails />
             </div>
           </Section>
 
@@ -204,13 +205,7 @@ export default function PrivacyPage() {
             <div className="mt-5 space-y-2 text-[15px] font-light leading-relaxed text-ink/80">
               <p>Velvet Shell</p>
               <p>velvetshell.in</p>
-              <ContactPlaceholders />
-              <p>
-                Email:{' '}
-                <a href="mailto:info.velvetshell@gmail.com" className="font-medium text-burgundy underline decoration-burgundy/40 underline-offset-4 hover:decoration-burgundy">
-                  info.velvetshell@gmail.com
-                </a>
-              </p>
+              <ContactDetails />
             </div>
             <Link
               href="/contact"
@@ -238,35 +233,40 @@ function Section({ number, title, children }) {
   );
 }
 
-function ContactPlaceholders() {
-  // Lazy import avoided — keep privacy page self-contained with same public defaults.
-  const email = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'sales@velvetshell.in';
-  let phoneDigits = String(
-    process.env.NEXT_PUBLIC_CONTACT_PHONE || process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '',
-  ).replace(/\D/g, '');
-  if (phoneDigits.length === 10) phoneDigits = `91${phoneDigits}`;
-  let phoneDisplay = '';
-  if (phoneDigits.length === 12 && phoneDigits.startsWith('91')) {
-    phoneDisplay = `+91 ${phoneDigits.slice(2, 7)} ${phoneDigits.slice(7)}`;
-  } else if (phoneDigits.length === 10) {
-    phoneDisplay = `+91 ${phoneDigits.slice(0, 5)} ${phoneDigits.slice(5)}`;
-  } else if (phoneDigits) {
-    phoneDisplay = `+${phoneDigits}`;
-  }
+function ContactDetails() {
+  const contact = getContactDetails();
 
   return (
     <div className="my-4 space-y-1 text-[15px] font-light text-ink/80">
       <p>
         Email:{' '}
-        <a href={`mailto:${email}`} className="font-medium text-burgundy underline decoration-burgundy/40 underline-offset-4 hover:decoration-burgundy">
-          {email}
+        <a
+          href={contact.mailtoHref}
+          className="font-medium text-burgundy underline decoration-burgundy/40 underline-offset-4 hover:decoration-burgundy"
+        >
+          {contact.email}
         </a>
       </p>
-      {phoneDisplay ? (
+      {contact.emailAlt ? (
         <p>
-          Phone: <span className="text-ink/80">{phoneDisplay}</span>
+          Email:{' '}
+          <a
+            href={`mailto:${contact.emailAlt}`}
+            className="font-medium text-burgundy underline decoration-burgundy/40 underline-offset-4 hover:decoration-burgundy"
+          >
+            {contact.emailAlt}
+          </a>
         </p>
       ) : null}
+      {contact.phoneDisplay ? (
+        <p>
+          Phone:{' '}
+          <a href={contact.phoneHref} className="text-ink/80">
+            {contact.phoneDisplay}
+          </a>
+        </p>
+      ) : null}
+      <p>{BUSINESS_HOURS_LINE}</p>
     </div>
   );
 }

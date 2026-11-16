@@ -27,6 +27,15 @@ export function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+/** Greeting with real name only — never a dummy “there” / placeholder. */
+function greetHtml(...candidates) {
+  for (const candidate of candidates) {
+    const name = String(candidate || '').trim();
+    if (name) return `Hello ${escapeHtml(name)},`;
+  }
+  return 'Hello,';
+}
+
 export function formatInr(value) {
   const n = Number(value) || 0;
   return new Intl.NumberFormat('en-IN', {
@@ -211,6 +220,9 @@ export function emailShell({ preheader, eyebrow, title, introHtml = '', bodyHtml
             <td style="padding:24px 12px 8px;text-align:center;">
               <p style="margin:0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted};">
                 ${footerNote || `© ${year} Velvet Shell`}
+              </p>
+              <p style="margin:8px 0 0;font-family:${FONT};font-size:12px;line-height:1.6;color:${C.muted};">
+                Working hours: 10 am to 7 pm (IST)
               </p>
               <p style="margin:8px 0 0;font-family:${FONT};font-size:12px;color:${C.muted};">
                 <a href="${siteUrl()}" style="color:${C.ink};text-decoration:underline;">velvetshell.in</a>
@@ -419,8 +431,10 @@ function orderBasics(order) {
 /** Buyer: order confirmed */
 export function renderBuyerOrderEmail({ order, items, customerName }) {
   const { orderNo, placed } = orderBasics(order);
-  const name = escapeHtml(
-    customerName || order.shipping?.fullName || order.shipping?.firstName || 'there',
+  const greeting = greetHtml(
+    customerName,
+    order.shipping?.fullName,
+    order.shipping?.firstName,
   );
   const body = `
     ${sectionTitle('Order')}
@@ -446,7 +460,7 @@ export function renderBuyerOrderEmail({ order, items, customerName }) {
       preheader: `Your Velvet Shell order ${orderNo} is confirmed · ${formatInr(order.total)}`,
       eyebrow: 'Order confirmation',
       title: 'Thank you for your order',
-      introHtml: `Hello ${name}, we’ve received your order and payment. Here’s everything you need.`,
+      introHtml: `${greeting} we’ve received your Velvet Shell order and payment. Here’s everything you need.`,
       bodyHtml: body,
     }),
   };
@@ -490,8 +504,10 @@ export function renderOwnerOrderEmail({ order, items }) {
 export function renderBuyerShipmentEmail({ order, items, event, customerName }) {
   const { orderNo } = orderBasics(order);
   const isDelivered = event === 'delivered';
-  const name = escapeHtml(
-    customerName || order.shipping?.fullName || order.shipping?.firstName || 'there',
+  const greeting = greetHtml(
+    customerName,
+    order.shipping?.fullName,
+    order.shipping?.firstName,
   );
   const awb = order.awb || '';
   const trackingUrl =
@@ -533,8 +549,8 @@ export function renderBuyerShipmentEmail({ order, items, event, customerName }) 
       eyebrow: isDelivered ? 'Delivered' : 'On the way',
       title: isDelivered ? 'Your order was delivered' : 'Your order is on the way',
       introHtml: isDelivered
-        ? `Hello ${name}, your Velvet Shell order has been delivered. We hope you love it.`
-        : `Hello ${name}, your order has been handed to the courier. Use the tracking details below anytime.`,
+        ? `${greeting} your Velvet Shell order has been delivered. We hope you love it.`
+        : `${greeting} your Velvet Shell order has been handed to the courier. Use the tracking details below anytime.`,
       bodyHtml: body,
     }),
   };
@@ -590,10 +606,10 @@ export function renderOwnerShipmentEmail({ order, event }) {
 }
 
 export function renderPasswordResetEmail({ fullName, code, accountUrl, loginUrl }) {
-  const name = escapeHtml(fullName || 'there');
+  const greeting = greetHtml(fullName);
   const body = `
     <p style="margin:0 0 20px;font-family:${FONT};font-size:15px;line-height:1.6;color:${C.body};">
-      Hello ${name}, use this one-time code to reset your password. It expires in 15 minutes.
+      ${greeting} use this one-time code to reset your Velvet Shell password. It expires in 15 minutes.
     </p>
     <div style="margin:8px 0 24px;padding:20px;border:1px solid ${C.line};border-radius:6px;background:${C.soft};text-align:center;">
       <p style="margin:0;font-family:${MONO};font-size:28px;letter-spacing:0.22em;color:${C.ink};font-weight:600;">${escapeHtml(code)}</p>

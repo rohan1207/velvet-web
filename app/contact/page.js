@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import ContactForm from '@/components/ContactForm';
-import { getContactDetails } from '@/lib/contact';
+import { BUSINESS_HOURS, getContactDetails } from '@/lib/contact';
 
 export const metadata = {
   title: 'Contact',
@@ -69,6 +69,10 @@ export default function ContactPage() {
                 </a>
               </div>
             ) : null}
+            <div>
+              <p className="text-[10px] tracking-[0.28em] text-gold uppercase">Working hours</p>
+              <p className="mt-2 text-ink">{BUSINESS_HOURS} (IST)</p>
+            </div>
           </div>
 
           <div className="mt-8 space-y-7 text-sm sm:mt-10 sm:space-y-8">
@@ -116,7 +120,7 @@ export default function ContactPage() {
               <p className="text-[10px] tracking-[0.28em] text-gold uppercase">Notes</p>
               <p className="mt-2 max-w-md leading-relaxed text-ink/80">
                 For orders, product details, gifting, collaborations or general enquiries, get in
-                touch with the Velvet Shell team.
+                touch with the Velvet Shell team. We are available {BUSINESS_HOURS} (IST).
               </p>
               <p className="mt-3 max-w-md italic leading-relaxed text-stone">
                 Made with a little more meaning.

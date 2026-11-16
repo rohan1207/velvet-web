@@ -15,7 +15,7 @@ export default function ShippingPage() {
         >
           sales@velvetshell.in
         </a>
-        .
+        . Our working hours are 10 am to 7 pm (IST).
       </p>
     </Legal>
   );

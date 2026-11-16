@@ -185,7 +185,7 @@ export default function ProductExperience({
       'returns',
       'Returns',
       shipping.returnsNote ||
-        'See our Returns, Refunds & Exchanges policy for damaged or incorrect items.',
+        'Return or exchange requests within 48 hours of delivery. See our Returns, Refunds & Exchanges policy for details.',
     ],
   ];
 

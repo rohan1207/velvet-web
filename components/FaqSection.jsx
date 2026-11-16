@@ -100,7 +100,8 @@ export function FaqExperience() {
             <div className="mt-14 border-t border-ink/10 pt-10">
               <p className="font-display text-2xl text-ink md:text-3xl">Still looking?</p>
               <p className="mt-3 max-w-md text-[15px] font-light leading-relaxed text-ink/85">
-                For product, order or gifting enquiries, write to us through Contact Us.
+                For product, order or gifting enquiries, write to us through Contact Us. Working hours:
+                10 am to 7 pm (IST).
               </p>
               <Link
                 href="/contact"

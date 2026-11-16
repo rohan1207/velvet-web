@@ -22,7 +22,7 @@ export default function TermsPage() {
         >
           info.velvetshell@gmail.com
         </a>
-        .
+        . Working hours: 10 am to 7 pm (IST).
       </p>
     </Legal>
   );
