@@ -24,7 +24,8 @@ const db = createClient(url, serviceKey, {
 });
 
 const SLUG = 'payment-test-ring-5rs';
-const HERO = '/images/product-placeholder.svg';
+// JPG so order emails render in Gmail (SVG placeholders are blank there)
+const HERO = '/images/product-floral-ring.jpg';
 
 const family = {
   slug: SLUG,
