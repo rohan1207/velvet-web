@@ -53,7 +53,7 @@ const columns = [
     links: [
       { href: '/privacy', label: 'Privacy Policy' },
       { href: '/terms', label: 'Terms & Conditions' },
-      { href: '/returns', label: 'Returns & Refunds' },
+      { href: '/returns', label: 'Returns, Exchanges & Refunds' },
       { href: '/shipping', label: 'Shipping' },
     ],
   },

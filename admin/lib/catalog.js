@@ -515,6 +515,7 @@ export async function upsertFamily(payload) {
           slug: familySlug || v.slug,
           alsoSlugs: [v.slug, familySlug].filter(Boolean),
           name: saved.name,
+          imageUrl: v.heroUrl || '',
         });
       }
     }

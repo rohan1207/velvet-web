@@ -6,7 +6,7 @@ export const DEFAULT_SHIPPING = {
   delayed:
     'If tracking has not updated for several days, the parcel is not always lost. Contact us with your order number and we will investigate with the courier. Where needed, we arrange a replacement or refund.',
   returnsNote:
-    'Return or exchange requests within 48 hours of delivery. See our Returns, Refunds & Exchanges policy for details.',
+    'Return or exchange requests within 48 hours of delivery, subject to eligibility and inspection. See our Returns, Exchanges & Refunds Policy.',
 };
 
 export function normalizeShipping(input) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/context/StoreContext';
@@ -61,6 +61,10 @@ export default function CheckoutPage() {
   const [savingAddr, setSavingAddr] = useState(false);
   const pollRef = useRef(null);
   const finishingRef = useRef(false);
+
+  const goToOrders = useCallback(() => {
+    router.replace('/account?tab=orders');
+  }, [router]);
 
   useEffect(() => {
     if (!ready) return;
@@ -548,10 +552,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-[100svh] overflow-x-clip bg-gradient-to-b from-[#faf6f1] to-ivory pt-page pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-20">
       {successOrder && isConfirmedPaidOrder(successOrder) && (
-        <SuccessModal
-          order={successOrder}
-          onContinue={() => router.push('/account?tab=orders')}
-        />
+        <SuccessModal order={successOrder} onContinue={goToOrders} />
       )}
 
       <div className="mx-auto grid max-w-[1400px] gap-5 px-4 sm:gap-8 sm:px-5 md:grid-cols-12 md:items-start md:gap-10 md:px-10 lg:gap-14">
@@ -775,15 +776,21 @@ const SUCCESS_AUTO_MS = 3500;
 
 function SuccessModal({ order, onContinue }) {
   const [canLeave, setCanLeave] = useState(false);
+  // Keep latest navigate fn without resetting the auto-redirect timer on re-renders
+  // (cart clear / refreshOrders used to recreate onContinue and cancel the timeout).
+  const onContinueRef = useRef(onContinue);
+  onContinueRef.current = onContinue;
 
   useEffect(() => {
     const unlock = setTimeout(() => setCanLeave(true), SUCCESS_MIN_MS);
-    const auto = setTimeout(onContinue, SUCCESS_AUTO_MS);
+    const auto = setTimeout(() => {
+      onContinueRef.current?.();
+    }, SUCCESS_AUTO_MS);
     return () => {
       clearTimeout(unlock);
       clearTimeout(auto);
     };
-  }, [onContinue]);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/40 p-5 backdrop-blur-sm">
@@ -813,7 +820,7 @@ function SuccessModal({ order, onContinue }) {
         <button
           type="button"
           onClick={() => {
-            if (canLeave) onContinue();
+            if (canLeave) onContinueRef.current?.();
           }}
           disabled={!canLeave}
           className="bg-velvet-texture mt-8 inline-flex h-12 w-full items-center justify-center rounded-full font-label text-[11px] tracking-[0.2em] text-ivory disabled:opacity-70"

@@ -89,6 +89,22 @@ export function siteUrl() {
   return 'https://velvetshell.in';
 }
 
+/** Make product/media URLs absolute so they load in email clients. */
+export function absoluteEmailAssetUrl(src) {
+  const raw = String(src || '').trim();
+  if (!raw || /product-placeholder/i.test(raw)) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
+  if (raw.startsWith('//')) return `https:${raw}`;
+  const base = siteUrl();
+  return raw.startsWith('/') ? `${base}${raw}` : `${base}/${raw}`;
+}
+
+function productImageSrc(item) {
+  return absoluteEmailAssetUrl(
+    item?.image_url || item?.imageUrl || item?.image || item?.hero_url || item?.heroUrl || '',
+  );
+}
+
 export function lookLikeEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
@@ -273,8 +289,15 @@ export function lineItemsTable(items = [], { showSku = false } = {}) {
       const line = formatInr(
         item.line_total ?? item.lineTotal ?? (Number(item.unit_price || item.price) || 0) * qty,
       );
+      const img = productImageSrc(item);
+      const thumb = img
+        ? `<img src="${escapeHtml(img)}" alt="${title}" width="56" height="56" style="display:block;width:56px;height:56px;object-fit:cover;border-radius:4px;border:1px solid ${C.line};background:${C.soft};" />`
+        : `<div style="width:56px;height:56px;border-radius:4px;border:1px solid ${C.line};background:${C.soft};"></div>`;
       return `
         <tr>
+          <td width="64" style="padding:14px 12px 14px 0;border-bottom:1px solid ${C.line};vertical-align:top;">
+            ${thumb}
+          </td>
           <td style="padding:14px 0;border-bottom:1px solid ${C.line};vertical-align:top;">
             ${
               showSku && sku
@@ -293,7 +316,7 @@ export function lineItemsTable(items = [], { showSku = false } = {}) {
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;">
       <tr>
-        <td style="padding:0 0 8px;font-family:${FONT};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${C.muted};">Item</td>
+        <td colspan="2" style="padding:0 0 8px;font-family:${FONT};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${C.muted};">Item</td>
         <td style="padding:0 8px 8px;text-align:center;font-family:${FONT};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${C.muted};">Qty</td>
         <td style="padding:0 0 8px;text-align:right;font-family:${FONT};font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:${C.muted};">Amount</td>
       </tr>
@@ -631,9 +654,18 @@ export function renderPasswordResetEmail({ fullName, code, accountUrl, loginUrl 
   };
 }
 
-export function renderStockAvailableEmail({ productName, productUrl }) {
+export function renderStockAvailableEmail({ productName, productUrl, productImage }) {
   const title = productName || 'Your piece';
+  const img = absoluteEmailAssetUrl(productImage);
+  const imageBlock = img
+    ? `<div style="margin:0 0 20px;text-align:center;">
+        <a href="${escapeHtml(productUrl || siteUrl())}" style="text-decoration:none;">
+          <img src="${escapeHtml(img)}" alt="${escapeHtml(title)}" width="220" style="display:inline-block;max-width:100%;width:220px;height:auto;border-radius:6px;border:1px solid ${C.line};background:${C.soft};" />
+        </a>
+      </div>`
+    : '';
   const body = `
+    ${imageBlock}
     <p style="margin:0 0 8px;font-family:${FONT};font-size:15px;line-height:1.6;color:${C.body};">
       Good news — <strong style="color:${C.ink};font-weight:600;">${escapeHtml(title)}</strong> is back in stock.
     </p>

@@ -380,7 +380,7 @@ export async function bulkUpdateSets({ ids, action }) {
       const { flushStockNotify } = await import('@/lib/stock-notify');
       const { data: sets } = await db
         .from('product_sets')
-        .select('id, name, slug')
+        .select('id, name, slug, hero_url')
         .in('id', uniqueIds);
       // Notify anyone who clicked Notify me on the set page
       for (const set of sets || []) {
@@ -388,6 +388,7 @@ export async function bulkUpdateSets({ ids, action }) {
           kind: 'set',
           slug: set.slug,
           name: set.name || 'Set',
+          imageUrl: set.hero_url || '',
         });
       }
       // Also notify waitlists on member product/variant slugs that just came back
