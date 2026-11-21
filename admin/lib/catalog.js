@@ -409,7 +409,9 @@ export async function upsertFamily(payload) {
         hero_url: heroUrl,
         gallery: galleryList,
         stock: Math.max(0, Number(v.stock) || 0),
-        out_of_stock: !!v.outOfStock,
+        // Stock drives availability: 0 → out; >0 → in (clears a stale out_of_stock flag)
+        out_of_stock:
+          Math.max(0, Number(v.stock) || 0) <= 0 ? true : false,
         active: v.active !== false,
         sort_order: i,
         updated_at: new Date().toISOString(),
@@ -505,17 +507,26 @@ export async function upsertFamily(payload) {
     const { flushStockNotify } = await import('@/lib/stock-notify');
     const familySlug = String(saved?.slug || '').trim().toLowerCase();
     for (const v of saved?.variants || []) {
-      const nowOut = !!v.outOfStock || Number(v.stock) <= 0;
+      const stockNow = Number(v.stock) || 0;
+      const nowOut = !!v.outOfStock || stockNow <= 0;
       const prev = prevStockBySlug.get(v.slug);
-      const wasOut = prev ? prev.out : true;
-      if (wasOut && !nowOut) {
-        await flushStockNotify({
+      const wasOut = prev ? prev.out : stockNow > 0;
+      const restocked = wasOut && !nowOut;
+      if (restocked) {
+        const result = await flushStockNotify({
           kind: 'product',
           // Prefer family slug for /shop/[slug] buy link; also match waitlist on variant slug
           slug: familySlug || v.slug,
           alsoSlugs: [v.slug, familySlug].filter(Boolean),
           name: saved.name,
           imageUrl: v.heroUrl || '',
+        });
+        console.info('[upsertFamily] stock notify flush', {
+          familySlug,
+          variant: v.slug,
+          prev,
+          stockNow,
+          result,
         });
       }
     }

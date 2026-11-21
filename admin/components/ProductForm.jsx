@@ -1235,10 +1235,20 @@ export default function ProductForm({
               type="number"
               min="0"
               value={variant.stock}
-              onChange={(e) =>
-                patchVariant(form.activeVariantIndex, { stock: e.target.value })
-              }
+              onChange={(e) => {
+                const stock = e.target.value;
+                patchVariant(form.activeVariantIndex, {
+                  stock,
+                  // Keep sold-out flag in sync with qty so restock emails can fire
+                  outOfStock: Number(stock) <= 0,
+                });
+              }}
             />
+            <p className="mt-1 text-[11px] text-[#9a928a]">
+              {Number(variant.stock) <= 0
+                ? 'Stock 0 → shown as Sold out (Notify me).'
+                : 'In stock — saving will email anyone on the waitlist.'}
+            </p>
           </label>
           <label className="block">
             <span className="text-xs text-[#7a736c]">Material</span>

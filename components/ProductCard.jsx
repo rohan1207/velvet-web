@@ -8,6 +8,7 @@ import { flyToCart, prefersReducedMotion } from '@/lib/fly-to-cart';
 import { useStore } from '@/context/StoreContext';
 import { sortByColourPriority } from '@/lib/catalog/color-order';
 import VariantDropdown from '@/components/VariantDropdown';
+import NotifyMeButton from '@/components/NotifyMeButton';
 
 function resolveFromFamily(family, catalogProducts) {
   if (!family?.variants?.length) return [];
@@ -216,6 +217,7 @@ export default function ProductCard({
   const title = displayName(product.name);
   // Selected / previewed variant price (swatch hover or click).
   const priceLabel = money(displayProduct.price ?? active.price);
+  const soldOut = !!active.outOfStock;
 
   const bagBusy = bagPhase !== 'idle';
   const bagCollapsed = bagPhase === 'morph' || bagPhase === 'flying';
@@ -236,12 +238,7 @@ export default function ProductCard({
   async function handleAddToBag(event) {
     event.preventDefault();
     event.stopPropagation();
-    if (bagBusy) return;
-    if (active.outOfStock) {
-      // OOS: open PDP where Notify me lives
-      window.location.href = `/shop/${active.slug}`;
-      return;
-    }
+    if (bagBusy || soldOut) return;
 
     const token = (animTokenRef.current += 1);
     const slug = active.slug;
@@ -307,6 +304,19 @@ export default function ProductCard({
               className="object-contain object-center"
             />
           </div>
+        ) : null}
+
+        {soldOut ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-[5] bg-ivory/40"
+            aria-hidden
+          />
+        ) : null}
+
+        {soldOut ? (
+          <span className="pointer-events-none absolute top-2 left-2 z-[15] rounded-full bg-white/95 px-2 py-0.5 font-label text-[8px] tracking-[0.14em] text-burgundy uppercase ring-1 ring-ink/8 md:top-2.5 md:left-2.5 md:px-2.5 md:py-1 md:text-[9px]">
+            Sold out
+          </span>
         ) : null}
 
         <Link href={href} className="absolute inset-0 z-10" aria-label={`View ${active.name}`} />
@@ -382,39 +392,50 @@ export default function ProductCard({
             ) : null}
           </div>
 
-          <button
-            ref={bagBtnRef}
-            type="button"
-            disabled={bagBusy}
-            aria-busy={bagBusy}
-            aria-label={bagPhase === 'done' ? 'Added to bag' : 'Add to bag'}
-            onClick={handleAddToBag}
-            onPointerDown={(event) => event.stopPropagation()}
-            className={`bg-velvet-texture relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-label text-ivory uppercase transition-[width,height,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              bagPhase === 'flying'
-                ? 'h-8 w-8 px-0 py-0 opacity-0 md:h-9 md:w-9'
-                : bagPhase === 'morph'
-                  ? 'h-8 w-8 px-0 py-0 md:h-9 md:w-9'
-                  : bagPhase === 'done'
-                    ? 'h-8 min-w-[4.25rem] px-3 py-1.5 md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2'
-                    : 'h-8 min-w-[4.25rem] px-3 py-1.5 hover:opacity-90 active:scale-[0.98] md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2'
-            } ${bagBusy ? 'cursor-default' : 'cursor-pointer'} disabled:opacity-100`}
-          >
-            <span
-              className={`whitespace-nowrap text-[8px] tracking-[0.1em] transition-opacity duration-200 md:text-[9px] md:tracking-[0.14em] ${
-                bagPhase === 'idle' || bagPhase === 'done' ? 'opacity-100' : 'pointer-events-none absolute opacity-0'
-              }`}
+          {soldOut ? (
+            <NotifyMeButton
+              slug={active.slug}
+              kind="product"
+              name={active.name || product.name}
+              variant="card"
+            />
+          ) : (
+            <button
+              ref={bagBtnRef}
+              type="button"
+              disabled={bagBusy}
+              aria-busy={bagBusy}
+              aria-label={bagPhase === 'done' ? 'Added to bag' : 'Add to bag'}
+              onClick={handleAddToBag}
+              onPointerDown={(event) => event.stopPropagation()}
+              className={`bg-velvet-texture relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-label text-ivory uppercase transition-[width,height,padding,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                bagPhase === 'flying'
+                  ? 'h-8 w-8 px-0 py-0 opacity-0 md:h-9 md:w-9'
+                  : bagPhase === 'morph'
+                    ? 'h-8 w-8 px-0 py-0 md:h-9 md:w-9'
+                    : bagPhase === 'done'
+                      ? 'h-8 min-w-[4.25rem] px-3 py-1.5 md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2'
+                      : 'h-8 min-w-[4.25rem] px-3 py-1.5 hover:opacity-90 active:scale-[0.98] md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2'
+              } ${bagBusy ? 'cursor-default' : 'cursor-pointer'} disabled:opacity-100`}
             >
-              {bagPhase === 'done' ? 'Added' : 'Add'}
-            </span>
-            <span
-              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
-                bagCollapsed ? 'opacity-100' : 'pointer-events-none opacity-0'
-              }`}
-            >
-              <IconBagMini />
-            </span>
-          </button>
+              <span
+                className={`whitespace-nowrap text-[8px] tracking-[0.1em] transition-opacity duration-200 md:text-[9px] md:tracking-[0.14em] ${
+                  bagPhase === 'idle' || bagPhase === 'done'
+                    ? 'opacity-100'
+                    : 'pointer-events-none absolute opacity-0'
+                }`}
+              >
+                {bagPhase === 'done' ? 'Added' : 'Add'}
+              </span>
+              <span
+                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
+                  bagCollapsed ? 'opacity-100' : 'pointer-events-none opacity-0'
+                }`}
+              >
+                <IconBagMini />
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </article>

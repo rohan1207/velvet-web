@@ -255,8 +255,11 @@ function SetPromoCard({ set }) {
             className="object-contain object-center p-2.5 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] [@media(hover:hover)]:group-hover:scale-[1.03] sm:p-3"
           />
           {set.outOfStock ? (
-            <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 font-label text-[8px] tracking-[0.14em] text-burgundy uppercase ring-1 ring-ink/6">
-              Out of stock
+            <div className="pointer-events-none absolute inset-0 bg-ivory/40" aria-hidden />
+          ) : null}
+          {set.outOfStock ? (
+            <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 font-label text-[8px] tracking-[0.14em] text-burgundy uppercase ring-1 ring-ink/8">
+              Sold out
             </span>
           ) : (
             <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 font-label text-[8px] tracking-[0.14em] text-ink uppercase ring-1 ring-ink/6">

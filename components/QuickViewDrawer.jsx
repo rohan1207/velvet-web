@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '@/context/StoreContext';
 import { money } from '@/lib/format';
+import NotifyMeButton from '@/components/NotifyMeButton';
 
 export default function QuickViewDrawer() {
   const {
@@ -164,13 +165,22 @@ export default function QuickViewDrawer() {
                 <span className="font-num text-ink">{money(lineTotal)}</span>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => addToCart(product.slug, { size, metal, qty })}
-                  className="bg-velvet-texture flex h-12 flex-1 items-center justify-center rounded-full font-label text-[11px] tracking-[0.18em] text-ivory"
-                >
-                  Add to bag
-                </button>
+                {product.outOfStock ? (
+                  <NotifyMeButton
+                    slug={product.slug}
+                    kind="product"
+                    name={product.name}
+                    className="flex h-12 flex-1 items-center justify-center rounded-full border border-ink/20 bg-white font-label text-[11px] tracking-[0.18em] text-ink uppercase"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => addToCart(product.slug, { size, metal, qty })}
+                    className="bg-velvet-texture flex h-12 flex-1 items-center justify-center rounded-full font-label text-[11px] tracking-[0.18em] text-ivory"
+                  >
+                    Add to bag
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => toggleWishlist(product.slug)}

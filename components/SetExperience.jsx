@@ -402,14 +402,10 @@ export default function SetExperience({ set, otherSets = [] }) {
         </p>
         <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6 lg:grid-cols-4">
           {memberProducts.map(({ product, outOfStock }) => (
-            <div key={product.slug} className="relative">
-              <ProductCard product={{ ...product, outOfStock }} />
-              {outOfStock || product.outOfStock ? (
-                <p className="mt-2 text-center text-[10px] tracking-[0.14em] text-burgundy uppercase">
-                  Out of stock
-                </p>
-              ) : null}
-            </div>
+            <ProductCard
+              key={product.slug}
+              product={{ ...product, outOfStock: outOfStock || product.outOfStock }}
+            />
           ))}
         </div>
         {!memberProducts.length ? (

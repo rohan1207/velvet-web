@@ -24,8 +24,11 @@ export default function SetCard({ set, index = 0, className = '' }) {
             sizes="(max-width:768px) 50vw, 25vw"
           />
           {set.outOfStock ? (
-            <span className="absolute top-2.5 left-2.5 rounded-full bg-white/95 px-2.5 py-1 font-label text-[9px] tracking-[0.14em] text-burgundy uppercase ring-1 ring-ink/6">
-              Out of stock
+            <div className="pointer-events-none absolute inset-0 bg-ivory/40" aria-hidden />
+          ) : null}
+          {set.outOfStock ? (
+            <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 font-label text-[8px] tracking-[0.14em] text-burgundy uppercase ring-1 ring-ink/8 md:top-2.5 md:left-2.5 md:px-2.5 md:py-1 md:text-[9px]">
+              Sold out
             </span>
           ) : set.badge ? (
             <span className="absolute top-2.5 left-2.5 rounded-full bg-white/95 px-2.5 py-1 font-label text-[9px] tracking-[0.14em] text-ink uppercase ring-1 ring-ink/6">

@@ -115,36 +115,46 @@ export async function flushStockNotify({
   });
 
   let sent = 0;
-  if (resendKey) {
-    const resend = new Resend(resendKey);
-    const from = fromAddress();
-    const seenEmails = new Set();
-    for (const row of rows) {
-      const to = String(row.email || '')
-        .trim()
-        .toLowerCase();
-      if (!lookLikeEmail(to) || seenEmails.has(to)) continue;
-      seenEmails.add(to);
-      try {
-        const { error: mailErr } = await resend.emails.send({
-          from,
-          to: [to],
-          subject,
-          html,
-        });
-        if (!mailErr) sent += 1;
-        else console.error('[stock-notify] mail', mailErr);
-      } catch (err) {
-        console.error('[stock-notify] mail', err);
-      }
-    }
-  } else {
+  const sentIds = [];
+  if (!resendKey) {
     console.warn(
-      '[stock-notify] RESEND_API_KEY missing — clearing waitlist without mail',
+      '[stock-notify] RESEND_API_KEY missing — keeping waitlist until mail can send',
+      { slugs, waitlist: rows.length },
     );
+    return { sent: 0, cleared: 0, pending: rows.length };
   }
 
-  const ids = rows.map((r) => r.id);
-  await db.from('stock_notify_requests').delete().in('id', ids);
-  return { sent, cleared: ids.length };
+  const resend = new Resend(resendKey);
+  const from = fromAddress();
+  const seenEmails = new Set();
+  for (const row of rows) {
+    const to = String(row.email || '')
+      .trim()
+      .toLowerCase();
+    if (!lookLikeEmail(to) || seenEmails.has(to)) continue;
+    seenEmails.add(to);
+    try {
+      const { data, error: mailErr } = await resend.emails.send({
+        from,
+        to: [to],
+        subject,
+        html,
+      });
+      if (mailErr) {
+        console.error('[stock-notify] mail failed', { to, slug: linkSlug, mailErr });
+        continue;
+      }
+      sent += 1;
+      sentIds.push(row.id);
+      console.info('[stock-notify] mailed', { to, slug: linkSlug, id: data?.id });
+    } catch (err) {
+      console.error('[stock-notify] mail threw', { to, slug: linkSlug, err });
+    }
+  }
+
+  // Only remove rows that were emailed — keep failures for retry on next restock/save
+  if (sentIds.length) {
+    await db.from('stock_notify_requests').delete().in('id', sentIds);
+  }
+  return { sent, cleared: sentIds.length, pending: rows.length - sentIds.length };
 }
