@@ -35,7 +35,7 @@ export default function NotifyMeButton({
       .toLowerCase();
     if (!clean) {
       setError('Enter your email');
-      return;
+      return false;
     }
     setBusy(true);
     setError('');
@@ -49,20 +49,23 @@ export default function NotifyMeButton({
       if (!res.ok) throw new Error(data.error || 'Could not save your request');
       setDone(true);
       setOpen(false);
+      return true;
     } catch (err) {
       setError(err.message || 'Something went wrong');
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
-  function stop(e) {
-    e.preventDefault();
+  /** Stop card Link navigation — never preventDefault on pointerdown (blocks clicks). */
+  function stopBubble(e) {
     e.stopPropagation();
   }
 
   async function onPrimaryClick(e) {
-    stop(e);
+    e.preventDefault();
+    e.stopPropagation();
     if (busy || done) return;
     if (loggedIn) {
       await submitNotify(sessionEmail);
@@ -71,14 +74,16 @@ export default function NotifyMeButton({
     setOpen(true);
   }
 
-  async function onSubmit(e) {
-    stop(e);
+  async function onGuestNotify(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (busy) return;
     await submitNotify(email);
   }
 
   const cardBtnClass =
     className ||
-    'bg-velvet-texture relative inline-flex h-8 min-w-[4.25rem] shrink-0 items-center justify-center rounded-full px-3 py-1.5 font-label text-[8px] tracking-[0.1em] text-ivory uppercase transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-70 md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2 md:text-[9px] md:tracking-[0.14em]';
+    'bg-velvet-texture relative z-20 inline-flex h-8 min-w-[4.25rem] shrink-0 items-center justify-center rounded-full px-3 py-1.5 font-label text-[8px] tracking-[0.1em] text-ivory uppercase transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-70 md:h-10 md:min-w-[6.5rem] md:px-5 md:py-2 md:text-[9px] md:tracking-[0.14em]';
 
   const defaultBtnClass =
     className ||
@@ -87,7 +92,7 @@ export default function NotifyMeButton({
   if (done) {
     if (isCard) {
       return (
-        <p className="inline-flex h-8 min-w-[4.25rem] items-center justify-center px-2 text-center text-[8px] leading-snug tracking-[0.06em] text-emerald-800 md:h-10 md:min-w-[6.5rem] md:text-[9px]">
+        <p className="relative z-20 inline-flex h-8 min-w-[4.25rem] items-center justify-center px-2 text-center text-[8px] leading-snug tracking-[0.06em] text-emerald-800 md:h-10 md:min-w-[6.5rem] md:text-[9px]">
           We’ll email you
         </p>
       );
@@ -99,15 +104,14 @@ export default function NotifyMeButton({
     );
   }
 
-  // Logged in — one tap, no email field
   if (loggedIn || !open) {
     return (
-      <div className={isCard ? 'relative shrink-0' : 'flex flex-1 flex-col gap-2'}>
+      <div className={isCard ? 'relative z-20 shrink-0' : 'flex flex-1 flex-col gap-2'}>
         <button
           type="button"
           disabled={busy}
           onClick={onPrimaryClick}
-          onPointerDown={stop}
+          onPointerDown={stopBubble}
           aria-label="Notify me when back in stock"
           className={isCard ? cardBtnClass : defaultBtnClass}
         >
@@ -117,7 +121,7 @@ export default function NotifyMeButton({
           <p
             className={
               isCard
-                ? 'absolute top-full right-0 mt-1 max-w-[9rem] text-right text-[9px] leading-tight text-burgundy'
+                ? 'absolute top-full right-0 z-30 mt-1 max-w-[9rem] text-right text-[9px] leading-tight text-burgundy'
                 : 'text-xs text-burgundy'
             }
           >
@@ -128,14 +132,13 @@ export default function NotifyMeButton({
     );
   }
 
-  // Guest — ask for email
   if (isCard) {
     return (
-      <form
-        onSubmit={onSubmit}
-        onClick={stop}
-        onPointerDown={stop}
-        className="relative z-30 flex h-8 max-w-[11.5rem] shrink-0 items-center gap-1 md:h-10 md:max-w-[13.5rem]"
+      <div
+        role="form"
+        onClick={stopBubble}
+        onPointerDown={stopBubble}
+        className="relative z-20 flex h-8 max-w-[11.5rem] shrink-0 items-center gap-1 md:h-10 md:max-w-[13.5rem]"
       >
         <input
           type="email"
@@ -143,13 +146,23 @@ export default function NotifyMeButton({
           autoFocus
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              onGuestNotify(e);
+            }
+          }}
+          onPointerDown={stopBubble}
           placeholder="Email"
           aria-label="Email for stock notification"
           className="h-full min-w-0 flex-1 rounded-full border border-ink/15 bg-white px-2.5 text-[10px] text-ink outline-none placeholder:text-ink/35 focus:border-burgundy/40 md:px-3 md:text-[11px]"
         />
         <button
-          type="submit"
+          type="button"
           disabled={busy}
+          onClick={onGuestNotify}
+          onPointerDown={stopBubble}
           className="flex h-full shrink-0 items-center justify-center rounded-full bg-ink px-2.5 text-[8px] tracking-[0.1em] text-ivory uppercase disabled:opacity-60 md:px-3 md:text-[9px]"
         >
           {busy ? '…' : 'Notify'}
@@ -157,26 +170,29 @@ export default function NotifyMeButton({
         <button
           type="button"
           aria-label="Cancel"
+          disabled={busy}
           onClick={(e) => {
-            stop(e);
+            e.preventDefault();
+            e.stopPropagation();
             setOpen(false);
             setError('');
           }}
+          onPointerDown={stopBubble}
           className="flex h-full w-6 shrink-0 items-center justify-center rounded-full text-[10px] text-ink/45 hover:text-ink md:w-7"
         >
           ✕
         </button>
         {error ? (
-          <p className="absolute top-full right-0 mt-1 max-w-[11rem] text-right text-[9px] leading-tight text-burgundy">
+          <p className="absolute top-full right-0 z-30 mt-1 max-w-[11rem] text-right text-[9px] leading-tight text-burgundy">
             {error}
           </p>
         ) : null}
-      </form>
+      </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="w-full flex-1 space-y-2">
+    <form onSubmit={onGuestNotify} className="w-full flex-1 space-y-2">
       <input
         type="email"
         required
