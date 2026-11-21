@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { storefrontMediaUrl } from '@/lib/media-url';
 
 /**
  * Direct file upload to /api/upload (R2).
@@ -102,7 +103,7 @@ export default function ImageUploadField({
               className="relative overflow-hidden rounded-xl border border-[#2d2b2b]/8 bg-[#ebe3da]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-28 w-full object-cover" />
+              <img src={storefrontMediaUrl(url)} alt="" className="h-28 w-full object-cover" />
               <button
                 type="button"
                 className="mt-0 w-full bg-white/90 px-2 py-1.5 text-[10px] uppercase tracking-wider text-[#5e062a]"
@@ -127,7 +128,7 @@ export default function ImageUploadField({
       ) : singleUrl ? (
         <div className="relative overflow-hidden rounded-xl border border-[#2d2b2b]/8 bg-[#ebe3da]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={singleUrl} alt="" className={previewClassName} />
+          <img src={storefrontMediaUrl(singleUrl)} alt="" className={previewClassName} />
           {uploading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/55 backdrop-blur-[1px]">
               <LoadingSpinner label={progressLabel} />

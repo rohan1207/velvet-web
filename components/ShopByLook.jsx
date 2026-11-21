@@ -191,7 +191,9 @@ function LookCard({ look }) {
       ref={cardRef}
       className="group relative aspect-[3/4] h-auto w-full overflow-hidden rounded-[1.15rem] bg-pearl ring-1 ring-ink/6 sm:rounded-[1.35rem] lg:aspect-auto lg:h-full lg:min-h-0"
     >
-      <Image
+      {/* AppImage: skip optimizer for large R2 look PNGs (same as product media). */}
+      <AppImage
+        key={look.image}
         src={look.image}
         alt={look.alt}
         fill
@@ -327,7 +329,7 @@ export default function ShopByLook({
           {/* Left-aligned model pair — fills most of the viewport height */}
           <div className="grid min-h-0 w-full grid-cols-2 gap-2.5 sm:gap-3 lg:h-full lg:min-w-0 lg:flex-1 lg:self-stretch">
             {lookCards.map((look) => (
-              <LookCard key={look.id} look={look} />
+              <LookCard key={`${look.id}:${look.image}`} look={look} />
             ))}
           </div>
 
